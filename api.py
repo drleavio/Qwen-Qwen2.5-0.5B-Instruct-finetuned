@@ -1,22 +1,42 @@
 import torch
+import faiss
+import pickle
+import numpy as np
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 import uvicorn
 from contextlib import asynccontextmanager
+from sentence_transformers import SentenceTransformer
 
 # Configuration
 BASE_MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"
 FINETUNED_LORA_PATH = "./qwen-0.5b-finetuned"
+EMBEDDING_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
+INDEX_PATH = "faiss_index.bin"
+MAPPING_PATH = "faiss_mapping.pkl"
 
 model = None
 tokenizer = None
+embedder = None
+faiss_index = None
+faiss_mapping = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
-    global model, tokenizer
+    global model, tokenizer, embedder, faiss_index, faiss_mapping
+    
+    try:
+        print("Loading RAG components (FAISS index & embedding model)...")
+        faiss_index = faiss.read_index(INDEX_PATH)
+        with open(MAPPING_PATH, 'rb') as f:
+            faiss_mapping = pickle.load(f)
+        embedder = SentenceTransformer(EMBEDDING_MODEL_ID)
+    except Exception as e:
+        print(f"Warning: Failed to load RAG components. Make sure you ran build_index.py. Error: {e}")
+        
     print(f"Loading base model: {BASE_MODEL_ID}")
     base_model = AutoModelForCausalLM.from_pretrained(
         BASE_MODEL_ID,
@@ -50,9 +70,32 @@ def classify_use_case(req: QueryRequest):
     if model is None or tokenizer is None:
         raise HTTPException(status_code=500, detail="Models are not loaded yet.")
     
+    rag_context = ""
+    if embedder and faiss_index and faiss_mapping:
+        # 1. Embed the user's query
+        query_emb = embedder.encode([req.use_case], convert_to_numpy=True)
+        faiss.normalize_L2(query_emb)
+        
+        # 2. Search FAISS for top 3 matches
+        k = 3
+        distances, indices = faiss_index.search(query_emb, k)
+        
+        # 3. Construct RAG context string
+        retrieved_examples = []
+        for idx in indices[0]:
+            if idx != -1:
+                match = faiss_mapping[idx]
+                retrieved_examples.append(f"Similar Use Case: {match['use_case']}\nClassification:\n{match['target']}")
+                
+        if retrieved_examples:
+            rag_context = "Here are some similar examples from the EU AI Act:\n\n" + "\n\n---\n\n".join(retrieved_examples) + "\n\n=====\n\n"
+            
+    system_prompt = "You are a helpful assistant classifying AI systems under the EU AI Act."
+    user_prompt = f"{rag_context}Now classify this new use case:\n{req.use_case}"
+    
     messages = [
-        {"role": "system", "content": "You are a helpful assistant classifying AI systems under the EU AI Act."},
-        {"role": "user", "content": req.use_case}
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
     ]
     
     # Apply the ChatML template

@@ -9,3 +9,5 @@ fastapi
 uvicorn
 pydantic
 huggingface_hub
+sentence-transformers
+faiss-cpu
