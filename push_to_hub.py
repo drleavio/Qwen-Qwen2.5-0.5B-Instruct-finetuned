@@ -1,4 +1,4 @@
-from huggingface_hub import HfApi
+from huggingface_hub import HfApi, login
 from transformers import AutoTokenizer
 
 # Configuration
@@ -7,9 +7,14 @@ FINETUNED_LORA_PATH = "./qwen-0.5b-finetuned"
 # TODO: Replace with your actual Hugging Face username!
 HF_USERNAME = "your-hf-username"
 MODEL_NAME = "qwen-0.5b-eu-ai-act-classifier"
+# TODO: Replace with your Hugging Face Write Token!
+HF_TOKEN = "your_hf_token_here"
 
 def main():
     repo_id = f"{HF_USERNAME}/{MODEL_NAME}"
+    
+    print("Logging into Hugging Face...")
+    login(token=HF_TOKEN)
     
     print(f"Loading tokenizer from {FINETUNED_LORA_PATH}...")
     tokenizer = AutoTokenizer.from_pretrained(FINETUNED_LORA_PATH, trust_remote_code=True)
@@ -26,6 +31,7 @@ def main():
         repo_id=repo_id,
         repo_type="model",
     )
+    print(f"Successfully pushed model and tokenizer to https://huggingface.co/{repo_id}")
     print(f"Successfully pushed model and tokenizer to https://huggingface.co/{repo_id}")
 
 if __name__ == "__main__":
