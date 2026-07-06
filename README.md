@@ -1,5 +1,7 @@
 # EU AI Act LLM Classifier
 
+**Hugging Face Model**: [drlevio/qwen-0.5b-eu-ai-act-classifier](https://huggingface.co/drlevio/qwen-0.5b-eu-ai-act-classifier)
+
 This repository contains scripts to fine-tune and serve an LLM (Qwen 2.5) for classifying AI systems under the EU AI Act.
 
 ## Files
