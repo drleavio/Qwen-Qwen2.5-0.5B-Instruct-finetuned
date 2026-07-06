@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+venv/
+.venv/
+env/
+.Python
+
+# Logs
+*.log
+lt.log
+api.log
+
+# Datasets and Models (Ignore large files and weights)
+dataset.jsonl
+qwen-0.5b-finetuned/
+qwen-14b-finetuned/
+.cache/

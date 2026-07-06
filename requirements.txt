@@ -1,0 +1,11 @@
+torch
+transformers
+datasets
+peft
+trl
+bitsandbytes
+accelerate
+fastapi
+uvicorn
+pydantic
+huggingface_hub
