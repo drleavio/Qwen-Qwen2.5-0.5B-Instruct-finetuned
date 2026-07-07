@@ -58,7 +58,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="EU AI Act Classifier API", lifespan=lifespan)
 
 class QueryRequest(BaseModel):
-    use_case: str
+    domain: str
+    use_case_description: str
     temperature: float = 0.1
     max_tokens: int = 256
 
@@ -70,10 +71,12 @@ def classify_use_case(req: QueryRequest):
     if model is None or tokenizer is None:
         raise HTTPException(status_code=500, detail="Models are not loaded yet.")
     
+    full_use_case = f"Domain: {req.domain}\nDescription: {req.use_case_description}"
+    
     rag_context = ""
     if embedder and faiss_index and faiss_mapping:
         # 1. Embed the user's query
-        query_emb = embedder.encode([req.use_case], convert_to_numpy=True)
+        query_emb = embedder.encode([full_use_case], convert_to_numpy=True)
         faiss.normalize_L2(query_emb)
         
         # 2. Search FAISS for top 3 matches
@@ -91,7 +94,7 @@ def classify_use_case(req: QueryRequest):
             rag_context = "Here are some similar examples from the EU AI Act:\n\n" + "\n\n---\n\n".join(retrieved_examples) + "\n\n=====\n\n"
             
     system_prompt = "You are a helpful assistant classifying AI systems under the EU AI Act."
-    user_prompt = f"{rag_context}Now classify this new use case:\n{req.use_case}"
+    user_prompt = f"{rag_context}Now classify this new use case:\n{full_use_case}"
     
     messages = [
         {"role": "system", "content": system_prompt},
