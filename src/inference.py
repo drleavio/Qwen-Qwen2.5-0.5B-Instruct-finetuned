@@ -2,9 +2,12 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 
+import os
+
 # Configuration
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE_MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"
-FINETUNED_LORA_PATH = "./qwen-0.5b-finetuned"
+FINETUNED_LORA_PATH = os.path.join(BASE_DIR, "models", "qwen-0.5b-finetuned")
 
 def main():
     print(f"Loading base model: {BASE_MODEL_ID}")

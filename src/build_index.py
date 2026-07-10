@@ -3,10 +3,12 @@ import faiss
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import pickle
+import os
 
-DATASET_PATH = "dataset.jsonl"
-INDEX_PATH = "faiss_index.bin"
-MAPPING_PATH = "faiss_mapping.pkl"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATASET_PATH = os.path.join(BASE_DIR, "data", "dataset.jsonl")
+INDEX_PATH = os.path.join(BASE_DIR, "data", "faiss_index.bin")
+MAPPING_PATH = os.path.join(BASE_DIR, "data", "faiss_mapping.pkl")
 EMBEDDING_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
 
 def main():

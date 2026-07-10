@@ -11,9 +11,10 @@ from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
 
 # Configuration
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"
-DATASET_PATH = "dataset.jsonl"
-OUTPUT_DIR = "./qwen-0.5b-finetuned"
+DATASET_PATH = os.path.join(BASE_DIR, "data", "dataset.jsonl")
+OUTPUT_DIR = os.path.join(BASE_DIR, "models", "qwen-0.5b-finetuned")
 
 def format_instruction(example):
     """
