@@ -1,8 +1,11 @@
 from huggingface_hub import HfApi, login
 from transformers import AutoTokenizer
 
+import os
+
 # Configuration
-FINETUNED_LORA_PATH = "./qwen-0.5b-finetuned"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FINETUNED_LORA_PATH = os.path.join(BASE_DIR, "models", "qwen-0.5b-finetuned")
 
 # TODO: Replace with your actual Hugging Face username!
 HF_USERNAME = "your-hf-username"

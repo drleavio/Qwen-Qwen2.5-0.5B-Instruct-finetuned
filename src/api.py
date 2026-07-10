@@ -10,12 +10,15 @@ import uvicorn
 from contextlib import asynccontextmanager
 from sentence_transformers import SentenceTransformer
 
+import os
+
 # Configuration
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE_MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"
-FINETUNED_LORA_PATH = "./qwen-0.5b-finetuned"
+FINETUNED_LORA_PATH = os.path.join(BASE_DIR, "models", "qwen-0.5b-finetuned")
 EMBEDDING_MODEL_ID = "sentence-transformers/all-MiniLM-L6-v2"
-INDEX_PATH = "faiss_index.bin"
-MAPPING_PATH = "faiss_mapping.pkl"
+INDEX_PATH = os.path.join(BASE_DIR, "data", "faiss_index.bin")
+MAPPING_PATH = os.path.join(BASE_DIR, "data", "faiss_mapping.pkl")
 
 model = None
 tokenizer = None
