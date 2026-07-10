@@ -2,8 +2,14 @@ import torch
 import faiss
 import pickle
 import numpy as np
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
+from dotenv import load_dotenv
+import smtplib
+from email.mime.text import MIMEText
+from pymongo import MongoClient
+
+load_dotenv()
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 import uvicorn
@@ -25,12 +31,22 @@ tokenizer = None
 embedder = None
 faiss_index = None
 faiss_mapping = None
+mongo_client = None
+db_collection = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
-    global model, tokenizer, embedder, faiss_index, faiss_mapping
+    global model, tokenizer, embedder, faiss_index, faiss_mapping, mongo_client, db_collection
     
+    MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+    try:
+        mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=2000)
+        db_collection = mongo_client["eu_ai_act_db"]["queries"]
+        print("Connected to MongoDB.")
+    except Exception as e:
+        print(f"Warning: Failed to connect to MongoDB: {e}")
+
     try:
         print("Loading RAG components (FAISS index & embedding model)...")
         faiss_index = faiss.read_index(INDEX_PATH)
@@ -61,20 +77,51 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="EU AI Act Classifier API", lifespan=lifespan)
 
 class QueryRequest(BaseModel):
-    domain: str
-    use_case_description: str
+    name: str
+    email: str
+    questionnaire: str
+    requirements: str
+    domain: str = ""
+    use_case_description: str = ""
     temperature: float = 0.1
     max_tokens: int = 256
 
 class QueryResponse(BaseModel):
     response: str
 
+def send_email_report(to_address: str, report_content: str):
+    smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    sender_email = os.getenv("SENDER_EMAIL", "your_email@gmail.com")
+    sender_password = os.getenv("SENDER_PASSWORD", "your_password")
+    
+    if sender_password == "your_password" or not sender_password:
+        print("Skipping email sending: Please update SENDER_PASSWORD in .env")
+        return
+        
+    msg = MIMEText(report_content)
+    msg['Subject'] = 'Your EU AI Act Classification Report'
+    msg['From'] = sender_email
+    msg['To'] = to_address
+    
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
+        print(f"Report emailed to {to_address}")
+    except Exception as e:
+        print(f"Failed to send email to {to_address}: {e}")
+
 @app.post("/classify", response_model=QueryResponse)
-def classify_use_case(req: QueryRequest):
+def classify_use_case(req: QueryRequest, background_tasks: BackgroundTasks):
     if model is None or tokenizer is None:
         raise HTTPException(status_code=500, detail="Models are not loaded yet.")
     
-    full_use_case = f"Domain: {req.domain}\nDescription: {req.use_case_description}"
+    full_use_case = f"Name: {req.name}\nEmail: {req.email}\nQuestionnaire: {req.questionnaire}\nRequirements: {req.requirements}"
+    if req.domain or req.use_case_description:
+        full_use_case += f"\nDomain: {req.domain}\nDescription: {req.use_case_description}"
     
     rag_context = ""
     if embedder and faiss_index and faiss_mapping:
@@ -119,6 +166,18 @@ def classify_use_case(req: QueryRequest):
     
     # Extract only the generated tokens
     response_text = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
+    
+    # Save to MongoDB
+    if db_collection is not None:
+        try:
+            record = req.dict()
+            record["response"] = response_text
+            db_collection.insert_one(record)
+        except Exception as e:
+            print(f"Failed to insert record to MongoDB: {e}")
+            
+    # Send email in background
+    background_tasks.add_task(send_email_report, req.email, response_text)
     
     return QueryResponse(response=response_text)
 
