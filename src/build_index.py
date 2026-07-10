@@ -37,10 +37,15 @@ def main():
                 articles = data.get("Unnamed: 3", "")
                 rationale = data.get("Unnamed: 5", "")
                 
+                annex = data.get("Unnamed: 4", "")
+                urls = data.get("Unnamed: 7", "")
+                
                 target_text = (
                     f"Risk Classification: {classification}\n"
                     f"Relevant Articles: {articles}\n"
-                    f"Rationale: {rationale}"
+                    f"Annex / Clause: {annex}\n"
+                    f"Rationale: {rationale}\n"
+                    f"Source URLs: {urls}"
                 )
                 
                 metadata.append({
